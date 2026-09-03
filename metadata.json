@@ -1,0 +1,6 @@
+{
+  "name": "Team Cards",
+  "description": "Corporate expense and virtual spend card dashboard powered by BMONI Embedded API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
