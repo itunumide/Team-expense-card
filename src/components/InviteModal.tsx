@@ -33,7 +33,8 @@ export const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose, onSuc
       const res = await fetch('/api/employees/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, department })
+        body: JSON.stringify({ name, email, department }),
+        credentials: 'include'
       });
 
       const data = await res.json();

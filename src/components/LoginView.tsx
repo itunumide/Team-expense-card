@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { CreditCard, Mail, Lock, ArrowRight, ShieldCheck, Sparkles, Building } from 'lucide-react';
+import { CreditCard, Mail, Lock, ArrowRight, ShieldCheck, Sparkles, Building, Sun, Moon } from 'lucide-react';
 import type { Owner } from '../types';
+import { useTheme } from '../hooks/useTheme';
 
 interface LoginViewProps {
   onSuccess: (owner: Owner) => void;
@@ -8,6 +9,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToSignup }) => {
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('adewale@acme.ng');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToSignup })
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
       });
 
       const data = await res.json();
@@ -44,23 +47,50 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToSignup })
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 selection:bg-emerald-500 selection:text-slate-950">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4 selection:bg-emerald-500 selection:text-slate-950"
+      style={{
+        backgroundColor: "var(--bg-primary)",
+        color: "var(--text-primary)",
+      }}
+    >
       <div className="w-full max-w-md space-y-6">
         {/* Brand & Logo */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 text-slate-950 shadow-xl shadow-emerald-950/40 mb-1">
             <CreditCard className="w-6 h-6 stroke-[2.2]" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Team Cards
-          </h1>
+          <div className="flex items-center justify-center space-x-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">
+              Team Cards
+            </h1>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              className="text-slate-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-800 transition"
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
+          </div>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xs mx-auto">
             BMONI Embedded API Corporate Spend Cards
           </p>
         </div>
 
         {/* Demo Fast Fill Helper */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-3 flex items-center justify-between text-xs text-slate-300">
+        <div
+          className="border rounded-2xl p-3 flex items-center justify-between text-xs"
+          style={{
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border-color)",
+            color: "var(--text-primary)",
+          }}
+        >
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-emerald-400" />
             <span>Hackathon Demo Account:</span>
@@ -75,49 +105,91 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToSignup })
         </div>
 
         {/* Login Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div
+          className="border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6"
+          style={{
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border-color)",
+          }}
+        >
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-100">Sign in to your dashboard</h2>
-            <p className="text-xs text-slate-400">Enter your credentials to manage company spend</p>
+            <h2
+              className="text-lg font-bold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Sign in to your dashboard
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              Enter your credentials to manage company spend
+            </p>
           </div>
 
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs">
+            <div
+              className="p-3 border rounded-xl text-xs flex items-start space-x-2.5"
+              style={{
+                backgroundColor: "var(--danger-bg)",
+                borderColor: "var(--danger-border)",
+                color: "var(--danger-text)",
+              }}
+            >
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Work Email
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail
+                  className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--text-secondary)" }}
+                />
                 <input
                   type="email"
                   required
                   placeholder="name@company.ng"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 transition"
+                  style={{
+                    backgroundColor: "var(--bg-primary)",
+                    color: "var(--text-primary)",
+                    borderColor: "var(--border-color)",
+                  }}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 Password
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Lock
+                  className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--text-secondary)" }}
+                />
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition"
+                  className="w-full border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 transition"
+                  style={{
+                    backgroundColor: "var(--bg-primary)",
+                    color: "var(--text-primary)",
+                    borderColor: "var(--border-color)",
+                  }}
                 />
               </div>
             </div>
@@ -142,9 +214,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, onGoToSignup })
             </button>
           </form>
 
-          <div className="pt-4 border-t border-slate-800 text-center">
-            <p className="text-xs text-slate-400">
-              New business owner?{' '}
+          <div
+            className="pt-4 border-t text-center"
+            style={{ borderColor: "var(--border-color)" }}
+          >
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              New business owner?{" "}
               <button
                 type="button"
                 onClick={onGoToSignup}

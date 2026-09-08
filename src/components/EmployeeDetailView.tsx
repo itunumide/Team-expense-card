@@ -47,7 +47,7 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({
 
   const fetchEmployeeData = async () => {
     try {
-      const res = await fetch(`/api/employees/${employeeId}`);
+      const res = await fetch(`/api/employees/${employeeId}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setEmployee(data.employee);
@@ -88,7 +88,8 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({
 
     try {
       const res = await fetch(`/api/cards/${card.id}/${action}`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include'
       });
       const data = await res.json();
       if (res.ok) {
@@ -118,7 +119,8 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({
       const res = await fetch(`/api/cards/${card.id}/limit`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limitAmount: num })
+        body: JSON.stringify({ limitAmount: num }),
+        credentials: 'include'
       });
       const data = await res.json();
       if (res.ok) {

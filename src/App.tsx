@@ -10,6 +10,7 @@ import { LoginView } from './components/LoginView';
 import { InviteModal } from './components/InviteModal';
 import { IssueCardModal } from './components/IssueCardModal';
 import { SwipeSimulatorModal } from './components/SwipeSimulatorModal';
+import { useTheme } from './hooks/useTheme';
 import type { Owner, DashboardStats, Employee, Card, Transaction } from './types';
 
 export default function App() {
@@ -30,10 +31,12 @@ export default function App() {
   const [swipeModalOpen, setSwipeModalOpen] = useState(false);
   const [swipeCardId, setSwipeCardId] = useState<string | undefined>(undefined);
 
+  const { theme, toggleTheme } = useTheme();
+
   // Fetch initial user & state
   const fetchOwnerAndData = useCallback(async () => {
     try {
-      const authRes = await fetch('/api/auth/me');
+      const authRes = await fetch('/api/auth/me', { credentials: 'include' });
       if (authRes.ok) {
         const authData = await authRes.json();
         setOwner(authData.owner);
@@ -41,9 +44,9 @@ export default function App() {
 
       // Fetch Dashboard Stats & Balance
       const [statsRes, empRes, balRes] = await Promise.all([
-        fetch('/api/dashboard/stats'),
-        fetch('/api/employees'),
-        fetch('/api/wallet/balance')
+        fetch('/api/dashboard/stats', { credentials: 'include' }),
+        fetch('/api/employees', { credentials: 'include' }),
+        fetch('/api/wallet/balance', { credentials: 'include' })
       ]);
 
       if (statsRes.ok) {
@@ -74,9 +77,9 @@ export default function App() {
     const interval = setInterval(async () => {
       try {
         const [balRes, statsRes, empRes] = await Promise.all([
-          fetch('/api/wallet/balance'),
-          fetch('/api/dashboard/stats'),
-          fetch('/api/employees')
+          fetch('/api/wallet/balance', { credentials: 'include' }),
+          fetch('/api/dashboard/stats', { credentials: 'include' }),
+          fetch('/api/employees', { credentials: 'include' })
         ]);
 
         if (balRes.ok) {
@@ -138,7 +141,13 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div
+      className="min-h-screen flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950"
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        color: 'var(--text-primary)',
+      }}
+    >
       {/* Navigation Header */}
       <Navbar
         currentTab={currentTab}
@@ -156,10 +165,12 @@ export default function App() {
           setSwipeModalOpen(true);
         }}
         onLogout={handleLogout}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-28 py-8">
         {selectedEmployeeId ? (
           <EmployeeDetailView
             employeeId={selectedEmployeeId}

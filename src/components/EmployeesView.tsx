@@ -48,7 +48,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     setLinkingId(employee.id);
     try {
       const res = await fetch(`/api/employees/${employee.id}/simulate-link`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include'
       });
       if (res.ok) {
         onRefreshData();

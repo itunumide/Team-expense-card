@@ -1,15 +1,84 @@
+import 'dotenv/config';
+import crypto from 'node:crypto';
 import express from 'express';
 import path from 'path';
 import QRCode from 'qrcode';
 import { createServer as createViteServer } from 'vite';
-import { storage } from './server/storage';
+import { storage } from './server/storageSupabase';
 import { bmoni, BMONI_TEST_IDENTITIES } from './server/bmoni';
+
+type OwnerSession = {
+  ownerId: string;
+  createdAt: number;
+};
+
+const SESSION_COOKIE = 'teamcards_session';
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+
+const sessions = new Map<string, OwnerSession>();
+
+function parseCookieHeader(cookieHeader: string | undefined): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  if (!cookieHeader) return cookies;
+  cookieHeader.split(';').forEach((part) => {
+    const [name, ...rest] = part.trim().split('=');
+    if (name) cookies[name] = decodeURIComponent(rest.join('='));
+  });
+  return cookies;
+}
+
+function createSession(ownerId: string): string {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { ownerId, createdAt: Date.now() });
+  pruneExpiredSessions();
+  return token;
+}
+
+function getSessionOwnerId(req: express.Request): string | null {
+  const cookies = parseCookieHeader(req.headers.cookie);
+  const token = cookies[SESSION_COOKIE];
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+    sessions.delete(token);
+    return null;
+  }
+  return session.ownerId;
+}
+
+function pruneExpiredSessions() {
+  const now = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (now - session.createdAt > SESSION_TTL_MS) {
+      sessions.delete(token);
+    }
+  }
+}
+
+function setSessionCookie(res: express.Response, token: string) {
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: SESSION_TTL_MS,
+    path: '/'
+  });
+}
+
+function clearSessionCookie(res: express.Response) {
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+}
+
+async function getAuthenticatedOwner(req: express.Request) {
+  const ownerId = getSessionOwnerId(req);
+  if (!ownerId) return null;
+  return storage.getOwnerByIdAsync(ownerId);
+}
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Use raw buffer capturing for signature verification on webhooks
   app.use(
     express.json({
       verify: (req: any, _res, buf) => {
@@ -19,21 +88,26 @@ async function startServer() {
   );
   app.use(express.urlencoded({ extended: true }));
 
-  // --- API Routes ---
-
   // 1. Auth & Session (Owner account)
-  app.post('/api/auth/login', (req, res) => {
-    const { email, password } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      const owner = await storage.getOwnerByEmailAsync(email);
+      if (!owner) {
+        return res.status(404).json({ error: 'No account found for this email' });
+      }
+
+      const token = createSession(owner.id);
+      setSessionCookie(res, token);
+      return res.json({ owner, token });
+    } catch (err: any) {
+      console.error('Login error:', err);
+      res.status(500).json({ error: 'Login failed' });
     }
-    const owner = storage.getOwnerByEmail(email);
-    if (!owner) {
-      // Auto-fallback for demo if owner doesn't exist
-      const firstOwner = storage.getOwners()[0];
-      return res.json({ owner: firstOwner, token: 'demo_token_valid' });
-    }
-    return res.json({ owner, token: 'demo_token_valid' });
   });
 
   app.post('/api/auth/signup', async (req, res) => {
@@ -43,19 +117,16 @@ async function startServer() {
         return res.status(400).json({ error: 'Name, email, and company name are required' });
       }
 
-      const existing = storage.getOwnerByEmail(email);
+      const existing = await storage.getOwnerByEmailAsync(email);
       if (existing) {
         return res.status(400).json({ error: 'An owner account with this email already exists' });
       }
 
-      // 1. Create BMONI User
       const bmoniUser = await bmoni.createUser({ name, email });
 
-      // 2. Provision NGN Company Wallet & Virtual Account
       const walletRes = await bmoni.provisionWallet(bmoniUser.userId, companyName);
 
-      // 3. Save local Owner record
-      const owner = storage.createOwner({
+      const owner = await storage.createOwnerAsync({
         name,
         email,
         companyName,
@@ -65,8 +136,10 @@ async function startServer() {
         virtualAccount: walletRes.virtualAccount
       });
 
-      // Credit starter sandbox balance
-      storage.setWalletBalance(walletRes.walletId, 500000);
+      await storage.setWalletBalanceAsync(walletRes.walletId, 500000);
+
+      const token = createSession(owner.id);
+      setSessionCookie(res, token);
 
       res.status(201).json({ owner });
     } catch (err: any) {
@@ -75,12 +148,22 @@ async function startServer() {
     }
   });
 
-  app.get('/api/auth/me', (req, res) => {
-    const owner = storage.getOwners()[0];
-    if (!owner) {
-      return res.status(404).json({ error: 'No owner found' });
+  app.get('/api/auth/me', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      res.json({ owner });
+    } catch (err: any) {
+      console.error('Auth me error:', err);
+      res.status(500).json({ error: 'Failed to fetch owner' });
     }
-    res.json({ owner });
+  });
+
+  app.post('/api/auth/logout', (_req, res) => {
+    clearSessionCookie(res);
+    res.json({ success: true });
   });
 
   // 2. KYC Activation
@@ -90,11 +173,12 @@ async function startServer() {
 
   app.post('/api/kyc/submit', async (req, res) => {
     try {
-      const { ownerId, bvn, firstName, lastName, dob, phone, address } = req.body;
-      const owner = storage.getOwnerById(ownerId) || storage.getOwners()[0];
+      const owner = await getAuthenticatedOwner(req);
       if (!owner) {
-        return res.status(404).json({ error: 'Owner record not found' });
+        return res.status(401).json({ error: 'Not authenticated' });
       }
+
+      const { bvn, firstName, lastName, dob, phone, address } = req.body;
 
       const result = await bmoni.activateKyc({
         userId: owner.bmoniUserId || 'bmoni_usr_temp',
@@ -108,19 +192,18 @@ async function startServer() {
       });
 
       if (result.status === 'FAILED') {
-        storage.updateOwner(owner.id, { kycStatus: 'FAILED' });
+        await storage.updateOwnerAsync(owner.id, { kycStatus: 'FAILED' });
         return res.status(400).json({
           error: result.message,
           errorCode: result.errorCode || 'ERR_KYC_FAILED'
         });
       }
 
-      const updatedOwner = storage.updateOwner(owner.id, {
+      const updatedOwner = await storage.updateOwnerAsync(owner.id, {
         kycStatus: result.status,
         kycDetails: { bvn, phone, dob, address }
       });
 
-      // Trigger kyc.activated webhook log
       const webhookPayload = {
         event: 'kyc.activated',
         userId: owner.bmoniUserId,
@@ -131,7 +214,7 @@ async function startServer() {
       const rawPayload = JSON.stringify(webhookPayload);
       const signature = bmoni.generateWebhookSignature(rawPayload);
 
-      storage.logWebhook({
+      await storage.logWebhookAsync({
         eventType: 'kyc.activated',
         payload: webhookPayload,
         signature,
@@ -145,116 +228,145 @@ async function startServer() {
     }
   });
 
-  app.get('/api/kyc/status', (req, res) => {
-    const ownerId = req.query.ownerId as string;
-    const owner = ownerId ? storage.getOwnerById(ownerId) : storage.getOwners()[0];
-    if (!owner) {
-      return res.status(404).json({ error: 'Owner not found' });
+  app.get('/api/kyc/status', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(404).json({ error: 'Owner not found' });
+      }
+      res.json({ kycStatus: owner.kycStatus, owner });
+    } catch (err: any) {
+      console.error('KYC status error:', err);
+      res.status(500).json({ error: 'Failed to fetch KYC status' });
     }
-    res.json({ kycStatus: owner.kycStatus, owner });
   });
 
   // 3. Wallet & Virtual Account
-  app.get('/api/wallet/balance', (req, res) => {
-    const owner = storage.getOwners()[0];
-    if (!owner || !owner.bmoniWalletId) {
-      return res.json({
-        availableBalance: 0,
+  app.get('/api/wallet/balance', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner || !owner.bmoniWalletId) {
+        return res.json({
+          availableBalance: 0,
+          currency: 'NGN',
+          virtualAccount: null,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+
+      const availableBalance = await storage.getWalletBalanceAsync(owner.bmoniWalletId);
+      res.json({
+        walletId: owner.bmoniWalletId,
         currency: 'NGN',
-        virtualAccount: null,
+        availableBalance,
+        ledgerBalance: availableBalance,
+        virtualAccount: owner.virtualAccount,
         lastUpdated: new Date().toISOString()
       });
+    } catch (err: any) {
+      console.error('Wallet balance error:', err);
+      res.status(500).json({ error: 'Failed to fetch wallet balance' });
     }
-
-    const availableBalance = storage.getWalletBalance(owner.bmoniWalletId);
-    res.json({
-      walletId: owner.bmoniWalletId,
-      currency: 'NGN',
-      availableBalance,
-      ledgerBalance: availableBalance,
-      virtualAccount: owner.virtualAccount,
-      lastUpdated: new Date().toISOString()
-    });
   });
 
-  // Faucet endpoint to credit sandbox tokens
-  app.post('/api/wallet/faucet', (req, res) => {
-    const { amount } = req.body;
-    const creditAmount = Number(amount) || 100000;
-    const owner = storage.getOwners()[0];
-    if (!owner || !owner.bmoniWalletId) {
-      return res.status(400).json({ error: 'No active wallet found' });
+  app.post('/api/wallet/faucet', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner || !owner.bmoniWalletId) {
+        return res.status(400).json({ error: 'No active wallet found' });
+      }
+
+      const { amount } = req.body;
+      const creditAmount = Number(amount) || 100000;
+      const updated = await storage.creditWalletAsync(owner.bmoniWalletId, creditAmount);
+
+      const webhookPayload = {
+        event: 'deposit.confirmed',
+        walletId: owner.bmoniWalletId,
+        amount: creditAmount,
+        currency: 'NGN',
+        reference: `NGN_FAUCET_${Date.now()}`,
+        sender: 'BMONI Sandbox Faucet Dispenser',
+        timestamp: new Date().toISOString()
+      };
+      const signature = bmoni.generateWebhookSignature(JSON.stringify(webhookPayload));
+
+      await storage.logWebhookAsync({
+        eventType: 'deposit.confirmed',
+        payload: webhookPayload,
+        signature,
+        status: 'PROCESSED'
+      });
+
+      res.json({
+        success: true,
+        message: `Credited ₦${creditAmount.toLocaleString()} to company wallet`,
+        newBalance: updated
+      });
+    } catch (err: any) {
+      console.error('Faucet error:', err);
+      res.status(500).json({ error: 'Failed to credit wallet' });
     }
-
-    const updated = storage.creditWallet(owner.bmoniWalletId, creditAmount);
-
-    // Also trigger deposit.confirmed webhook log
-    const webhookPayload = {
-      event: 'deposit.confirmed',
-      walletId: owner.bmoniWalletId,
-      amount: creditAmount,
-      currency: 'NGN',
-      reference: `NGN_FAUCET_${Date.now()}`,
-      sender: 'BMONI Sandbox Faucet Dispenser',
-      timestamp: new Date().toISOString()
-    };
-    const rawPayload = JSON.stringify(webhookPayload);
-    const signature = bmoni.generateWebhookSignature(rawPayload);
-
-    storage.logWebhook({
-      eventType: 'deposit.confirmed',
-      payload: webhookPayload,
-      signature,
-      status: 'PROCESSED'
-    });
-
-    res.json({
-      success: true,
-      message: `Credited ₦${creditAmount.toLocaleString()} to company wallet`,
-      newBalance: updated
-    });
   });
 
   // 4. Dashboard Stats
-  app.get('/api/dashboard/stats', (req, res) => {
-    const owner = storage.getOwners()[0];
-    if (!owner) {
-      return res.status(404).json({ error: 'Owner not found' });
+  app.get('/api/dashboard/stats', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const stats = await storage.getDashboardStatsAsync(owner.id);
+      res.json(stats);
+    } catch (err: any) {
+      console.error('Dashboard stats error:', err);
+      res.status(500).json({ error: 'Failed to fetch dashboard stats' });
     }
-    const stats = storage.getDashboardStats(owner.id);
-    res.json(stats);
   });
 
   // 5. Employees & Invites
-  app.get('/api/employees', (req, res) => {
-    const owner = storage.getOwners()[0];
-    const employees = storage.getEmployees(owner?.id);
-    res.json({ employees });
+  app.get('/api/employees', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      const employees = await storage.getEmployeesAsync(owner.id);
+      res.json({ employees });
+    } catch (err: any) {
+      console.error('Employees list error:', err);
+      res.status(500).json({ error: 'Failed to fetch employees' });
+    }
   });
 
-  app.get('/api/employees/:id', (req, res) => {
-    const employee = storage.getEmployeeById(req.params.id);
-    if (!employee) {
-      return res.status(404).json({ error: 'Employee not found' });
+  app.get('/api/employees/:id', async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByIdAsync(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+      const card = employee.card;
+      const transactions = card ? await storage.getTransactionsAsync({ cardId: card.id }) : [];
+      res.json({ employee, card, transactions });
+    } catch (err: any) {
+      console.error('Employee detail error:', err);
+      res.status(500).json({ error: 'Failed to fetch employee' });
     }
-    const card = employee.card;
-    const transactions = card ? storage.getTransactions({ cardId: card.id }) : [];
-    res.json({ employee, card, transactions });
   });
 
   app.post('/api/employees/invite', async (req, res) => {
     try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
       const { name, email, department } = req.body;
       if (!name || !email) {
         return res.status(400).json({ error: 'Employee name and email are required' });
       }
 
-      const owner = storage.getOwners()[0];
-      if (!owner) {
-        return res.status(400).json({ error: 'Owner session not found' });
-      }
-
-      // Call BMONI createInvite
       const inviteRes = await bmoni.createInvite({
         name,
         email,
@@ -262,7 +374,6 @@ async function startServer() {
         companyName: owner.companyName
       });
 
-      // Generate QR Code data URL for instant mobile onboarding scan
       let qrCodeDataUrl = '';
       try {
         qrCodeDataUrl = await QRCode.toDataURL(inviteRes.inviteUrl, {
@@ -274,8 +385,7 @@ async function startServer() {
         console.warn('QR code generation failed:', qrErr);
       }
 
-      // Save local Employee record
-      const employee = storage.createEmployee({
+      const employee = await storage.createEmployeeAsync({
         ownerId: owner.id,
         name,
         email,
@@ -294,45 +404,53 @@ async function startServer() {
     }
   });
 
-  // Stage Demo Helper: Simulate employee opening mobile app & linking account
-  app.post('/api/employees/:id/simulate-link', (req, res) => {
-    const employee = storage.getEmployeeById(req.params.id);
-    if (!employee) {
-      return res.status(404).json({ error: 'Employee not found' });
+  app.post('/api/employees/:id/simulate-link', async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByIdAsync(req.params.id);
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+
+      const linkedUserId = `bmoni_usr_link_${Date.now().toString().slice(-4)}`;
+      const updated = await storage.updateEmployeeAsync(employee.id, {
+        inviteStatus: 'LINKED',
+        bmoniLinkedUserId: linkedUserId
+      });
+
+      const webhookPayload = {
+        event: 'invite.linked',
+        inviteId: employee.bmoniInviteId,
+        userId: linkedUserId,
+        email: employee.email,
+        name: employee.name,
+        timestamp: new Date().toISOString()
+      };
+      const signature = bmoni.generateWebhookSignature(JSON.stringify(webhookPayload));
+
+      await storage.logWebhookAsync({
+        eventType: 'invite.linked',
+        payload: webhookPayload,
+        signature,
+        status: 'PROCESSED'
+      });
+
+      res.json({ success: true, employee: updated });
+    } catch (err: any) {
+      console.error('Simulate link error:', err);
+      res.status(500).json({ error: 'Failed to simulate link' });
     }
-
-    const linkedUserId = `bmoni_usr_link_${Date.now().toString().slice(-4)}`;
-    const updated = storage.updateEmployee(employee.id, {
-      inviteStatus: 'LINKED',
-      bmoniLinkedUserId: linkedUserId
-    });
-
-    // Fire invite.linked webhook log
-    const webhookPayload = {
-      event: 'invite.linked',
-      inviteId: employee.bmoniInviteId,
-      userId: linkedUserId,
-      email: employee.email,
-      name: employee.name,
-      timestamp: new Date().toISOString()
-    };
-    const signature = bmoni.generateWebhookSignature(JSON.stringify(webhookPayload));
-
-    storage.logWebhook({
-      eventType: 'invite.linked',
-      payload: webhookPayload,
-      signature,
-      status: 'PROCESSED'
-    });
-
-    res.json({ success: true, employee: updated });
   });
 
   // 6. Virtual Cards Management
   app.post('/api/cards/issue', async (req, res) => {
     try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
       const { employeeId, limitAmount } = req.body;
-      const employee = storage.getEmployeeById(employeeId);
+      const employee = await storage.getEmployeeByIdAsync(employeeId);
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
@@ -345,7 +463,6 @@ async function startServer() {
 
       const limit = Number(limitAmount) || 50000;
 
-      // Call BMONI Cards API
       const cardRes = await bmoni.issueCard({
         linkedUserId: employee.bmoniLinkedUserId || 'bmoni_usr_demo',
         employeeName: employee.name,
@@ -354,7 +471,7 @@ async function startServer() {
         currency: 'NGN'
       });
 
-      const newCard = storage.createCard({
+      const newCard = await storage.createCardAsync({
         employeeId: employee.id,
         employeeName: employee.name,
         employeeEmail: employee.email,
@@ -379,32 +496,34 @@ async function startServer() {
 
   app.post('/api/cards/:id/freeze', async (req, res) => {
     try {
-      const card = storage.getCardById(req.params.id);
+      const card = await storage.getCardByIdAsync(req.params.id);
       if (!card) {
         return res.status(404).json({ error: 'Card not found' });
       }
 
       await bmoni.setCardStatus(card.bmoniCardId, 'freeze');
-      const updated = storage.updateCard(card.id, { status: 'FROZEN' });
+      const updated = await storage.updateCardAsync(card.id, { status: 'FROZEN' });
 
       res.json({ success: true, card: updated });
     } catch (err: any) {
+      console.error('Freeze card error:', err);
       res.status(500).json({ error: err.message || 'Failed to freeze card' });
     }
   });
 
   app.post('/api/cards/:id/unfreeze', async (req, res) => {
     try {
-      const card = storage.getCardById(req.params.id);
+      const card = await storage.getCardByIdAsync(req.params.id);
       if (!card) {
         return res.status(404).json({ error: 'Card not found' });
       }
 
       await bmoni.setCardStatus(card.bmoniCardId, 'unfreeze');
-      const updated = storage.updateCard(card.id, { status: 'ACTIVE' });
+      const updated = await storage.updateCardAsync(card.id, { status: 'ACTIVE' });
 
       res.json({ success: true, card: updated });
     } catch (err: any) {
+      console.error('Unfreeze card error:', err);
       res.status(500).json({ error: err.message || 'Failed to unfreeze card' });
     }
   });
@@ -412,7 +531,7 @@ async function startServer() {
   app.patch('/api/cards/:id/limit', async (req, res) => {
     try {
       const { limitAmount } = req.body;
-      const card = storage.getCardById(req.params.id);
+      const card = await storage.getCardByIdAsync(req.params.id);
       if (!card) {
         return res.status(404).json({ error: 'Card not found' });
       }
@@ -423,124 +542,141 @@ async function startServer() {
       }
 
       await bmoni.updateCardLimit(card.bmoniCardId, limit);
-      const updated = storage.updateCard(card.id, { limitAmount: limit });
+      const updated = await storage.updateCardAsync(card.id, { limitAmount: limit });
 
       res.json({ success: true, card: updated });
     } catch (err: any) {
+      console.error('Update limit error:', err);
       res.status(500).json({ error: err.message || 'Failed to update limit' });
     }
   });
 
-  // 7. Transaction Simulator (For stage live demos)
-  app.post('/api/transactions/simulate', (req, res) => {
-    const { cardId, amount, merchant, category } = req.body;
-    const card = storage.getCardById(cardId);
-    if (!card) {
-      return res.status(404).json({ error: 'Card not found' });
-    }
+  // 7. Transaction Simulator
+  app.post('/api/transactions/simulate', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
 
-    const txAmount = Number(amount) || 15000;
-    const owner = storage.getOwners()[0];
-    const companyWalletId = owner?.bmoniWalletId || 'bmoni_wlt_ngn_984120';
-    const walletBalance = storage.getWalletBalance(companyWalletId);
+      const { cardId, amount, merchant, category } = req.body;
+      const card = await storage.getCardByIdAsync(cardId);
+      if (!card) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
 
-    // Validation checks
-    let status: 'SUCCESS' | 'DECLINED' = 'SUCCESS';
-    let declinedReason: string | undefined;
+      const txAmount = Number(amount) || 15000;
+      const companyWalletId = owner.bmoniWalletId || 'bmoni_wlt_ngn_984120';
+      const walletBalance = await storage.getWalletBalanceAsync(companyWalletId);
 
-    if (card.status === 'FROZEN') {
-      status = 'DECLINED';
-      declinedReason = 'Card is FROZEN by administrator.';
-    } else if (card.spentAmount + txAmount > card.limitAmount) {
-      status = 'DECLINED';
-      declinedReason = `Transaction exceeds card limit (Limit: ₦${card.limitAmount.toLocaleString()}, Current Spent: ₦${card.spentAmount.toLocaleString()}).`;
-    } else if (walletBalance < txAmount) {
-      status = 'DECLINED';
-      declinedReason = 'Company wallet has insufficient NGN balance.';
-    }
+      let status: 'SUCCESS' | 'DECLINED' = 'SUCCESS';
+      let declinedReason: string | undefined;
 
-    const tx = storage.createTransaction({
-      cardId: card.id,
-      employeeId: card.employeeId,
-      employeeName: card.employeeName,
-      bmoniTransactionId: `bmoni_tx_${Date.now().toString().slice(-6)}`,
-      amount: txAmount,
-      currency: 'NGN',
-      merchant: merchant || 'POS Terminal Lekki Phase 1',
-      category: category || 'Business Operations',
-      status,
-      declinedReason
-    });
+      if (card.status === 'FROZEN') {
+        status = 'DECLINED';
+        declinedReason = 'Card is FROZEN by administrator.';
+      } else if (card.spentAmount + txAmount > card.limitAmount) {
+        status = 'DECLINED';
+        declinedReason = `Transaction exceeds card limit (Limit: ₦${card.limitAmount.toLocaleString()}, Current Spent: ₦${card.spentAmount.toLocaleString()}).`;
+      } else if (walletBalance < txAmount) {
+        status = 'DECLINED';
+        declinedReason = 'Company wallet has insufficient NGN balance.';
+      }
 
-    if (status === 'SUCCESS') {
-      // Debit company wallet & update card spentAmount
-      storage.debitWallet(companyWalletId, txAmount);
-      storage.updateCard(card.id, {
-        spentAmount: card.spentAmount + txAmount,
-        lastUsedAt: new Date().toISOString()
+      const tx = await storage.createTransactionAsync({
+        cardId: card.id,
+        employeeId: card.employeeId,
+        employeeName: card.employeeName,
+        bmoniTransactionId: `bmoni_tx_${Date.now().toString().slice(-6)}`,
+        amount: txAmount,
+        currency: 'NGN',
+        merchant: merchant || 'POS Terminal Lekki Phase 1',
+        category: category || 'Business Operations',
+        status,
+        declinedReason
       });
+
+      if (status === 'SUCCESS') {
+        await storage.debitWalletAsync(companyWalletId, txAmount);
+        await storage.updateCardAsync(card.id, {
+          spentAmount: card.spentAmount + txAmount,
+          lastUsedAt: new Date().toISOString()
+        });
+      }
+
+      const webhookPayload = {
+        event: 'card.transaction',
+        cardId: card.bmoniCardId,
+        transactionId: tx.bmoniTransactionId,
+        amount: txAmount,
+        currency: 'NGN',
+        merchant: tx.merchant,
+        status: tx.status,
+        declinedReason: tx.declinedReason,
+        timestamp: tx.occurredAt
+      };
+      const signature = bmoni.generateWebhookSignature(JSON.stringify(webhookPayload));
+
+      await storage.logWebhookAsync({
+        eventType: 'card.transaction',
+        payload: webhookPayload,
+        signature,
+        status: 'PROCESSED'
+      });
+
+      res.json({ transaction: tx, cardStatus: card.status });
+    } catch (err: any) {
+      console.error('Transaction simulate error:', err);
+      res.status(500).json({ error: err.message || 'Failed to simulate transaction' });
     }
-
-    // Fire card.transaction webhook log
-    const webhookPayload = {
-      event: 'card.transaction',
-      cardId: card.bmoniCardId,
-      transactionId: tx.bmoniTransactionId,
-      amount: txAmount,
-      currency: 'NGN',
-      merchant: tx.merchant,
-      status: tx.status,
-      declinedReason: tx.declinedReason,
-      timestamp: tx.occurredAt
-    };
-    const signature = bmoni.generateWebhookSignature(JSON.stringify(webhookPayload));
-
-    storage.logWebhook({
-      eventType: 'card.transaction',
-      payload: webhookPayload,
-      signature,
-      status: 'PROCESSED'
-    });
-
-    res.json({ transaction: tx, cardStatus: card.status });
   });
 
   // 8. Reports API
-  app.get('/api/reports', (req, res) => {
-    const { employeeId, cardId, status, search } = req.query as {
-      employeeId?: string;
-      cardId?: string;
-      status?: string;
-      search?: string;
-    };
-
-    const transactions = storage.getTransactions({
-      employeeId,
-      cardId,
-      status,
-      search
-    });
-
-    const totalSuccessfulSpend = transactions
-      .filter((t) => t.status === 'SUCCESS')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const successfulCount = transactions.filter((t) => t.status === 'SUCCESS').length;
-    const declinedCount = transactions.filter((t) => t.status === 'DECLINED').length;
-
-    res.json({
-      transactions,
-      summary: {
-        totalSuccessfulSpend,
-        totalTransactions: transactions.length,
-        successfulCount,
-        declinedCount
+  app.get('/api/reports', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
       }
-    });
+
+      const { employeeId, cardId, status, search } = req.query as {
+        employeeId?: string;
+        cardId?: string;
+        status?: string;
+        search?: string;
+      };
+
+      const transactions = await storage.getTransactionsAsync({
+        employeeId,
+        cardId,
+        status,
+        search
+      });
+
+      const totalSuccessfulSpend = transactions
+        .filter((t) => t.status === 'SUCCESS')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const successfulCount = transactions.filter((t) => t.status === 'SUCCESS').length;
+      const declinedCount = transactions.filter((t) => t.status === 'DECLINED').length;
+
+      res.json({
+        transactions,
+        summary: {
+          totalSuccessfulSpend,
+          totalTransactions: transactions.length,
+          successfulCount,
+          declinedCount
+        }
+      });
+    } catch (err: any) {
+      console.error('Reports error:', err);
+      res.status(500).json({ error: 'Failed to fetch reports' });
+    }
   });
 
   // 9. Webhook Receiver Endpoint
-  app.post('/api/webhooks/bmoni', (req: any, res) => {
+  app.post('/api/webhooks/bmoni', async (req: any, res) => {
     try {
       const signature = (req.headers['x-bmoni-signature'] ||
         req.headers['x-signature'] ||
@@ -550,27 +686,25 @@ async function startServer() {
 
       console.log(`[BMONI Webhook Received] Event: ${payload?.event || payload?.type}`);
 
-      // Optional signature verification check with sandbox tolerance
       const isVerified = bmoni.verifyWebhookSignature(rawString, signature);
       if (!isVerified && process.env.NODE_ENV === 'production' && !signature?.includes('demo')) {
         console.warn('Webhook signature mismatch in production');
-        // We log but don't crash hackathon demo
       }
 
       const eventType = payload.event || payload.type;
 
-      // Handle events
       if (eventType === 'kyc.activated') {
         const userId = payload.userId;
-        const owner = storage.getOwners().find((o) => o.bmoniUserId === userId);
+        const owners = await storage.getOwnersAsync();
+        const owner = owners.find((o) => o.bmoniUserId === userId);
         if (owner) {
-          storage.updateOwner(owner.id, { kycStatus: 'ACTIVE' });
+          await storage.updateOwnerAsync(owner.id, { kycStatus: 'ACTIVE' });
         }
       } else if (eventType === 'invite.linked') {
         const inviteId = payload.inviteId;
-        const employee = storage.getEmployeeByInviteId(inviteId);
+        const employee = await storage.getEmployeeByInviteIdAsync(inviteId);
         if (employee) {
-          storage.updateEmployee(employee.id, {
+          await storage.updateEmployeeAsync(employee.id, {
             inviteStatus: 'LINKED',
             bmoniLinkedUserId: payload.userId || `bmoni_usr_link_${Date.now().toString().slice(-4)}`
           });
@@ -579,15 +713,15 @@ async function startServer() {
         const walletId = payload.walletId;
         const amount = Number(payload.amount);
         if (walletId && amount > 0) {
-          storage.creditWallet(walletId, amount);
+          await storage.creditWalletAsync(walletId, amount);
         }
       } else if (eventType === 'card.transaction') {
-        // card transaction record
-        const card = storage.getCardByBmoniId(payload.cardId);
+        const card = await storage.getCardByBmoniIdAsync(payload.cardId);
         if (card && payload.transactionId) {
-          const existing = storage.getTransactions().find((t) => t.bmoniTransactionId === payload.transactionId);
-          if (!existing) {
-            storage.createTransaction({
+          const existing = await storage.getTransactionsAsync();
+          const found = existing.find((t) => t.bmoniTransactionId === payload.transactionId);
+          if (!found) {
+            await storage.createTransactionAsync({
               cardId: card.id,
               employeeId: card.employeeId,
               employeeName: card.employeeName,
@@ -603,7 +737,7 @@ async function startServer() {
         }
       }
 
-      const logged = storage.logWebhook({
+      const logged = await storage.logWebhookAsync({
         eventType: (eventType as any) || 'deposit.confirmed',
         payload,
         signature: signature || 'sha256=verified_sandbox',
@@ -618,13 +752,29 @@ async function startServer() {
   });
 
   // 10. Webhooks Inspector & Reset Demo
-  app.get('/api/webhooks/logs', (_req, res) => {
-    res.json({ logs: storage.getWebhookLogs() });
+  app.get('/api/webhooks/logs', async (req, res) => {
+    try {
+      const logs = await storage.getWebhookLogsAsync();
+      res.json({ logs });
+    } catch (err: any) {
+      console.error('Webhook logs error:', err);
+      res.status(500).json({ error: 'Failed to fetch webhook logs' });
+    }
   });
 
-  app.post('/api/system/reset-demo', (_req, res) => {
-    storage.resetToDemo();
-    res.json({ success: true, message: 'Reset database to hackathon demo state.' });
+  app.post('/api/system/reset-demo', async (req, res) => {
+    try {
+      const owner = await getAuthenticatedOwner(req);
+      if (!owner) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      await storage.resetToDemoAsync(owner.id);
+      res.json({ success: true, message: 'Reset database to hackathon demo state.' });
+    } catch (err: any) {
+      console.error('Reset demo error:', err);
+      res.status(500).json({ error: 'Failed to reset demo data' });
+    }
   });
 
   // Vite middleware setup

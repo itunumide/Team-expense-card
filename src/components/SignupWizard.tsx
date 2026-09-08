@@ -13,10 +13,13 @@ import {
   ArrowRight,
   Sparkles,
   RefreshCw,
-  Wallet
+  Wallet,
+  Sun,
+  Moon
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { BmoniTestIdentity, Owner } from '../types';
+import { useTheme } from '../hooks/useTheme';
 
 interface SignupWizardProps {
   onSuccess: (owner: Owner) => void;
@@ -24,6 +27,7 @@ interface SignupWizardProps {
 }
 
 export const SignupWizard: React.FC<SignupWizardProps> = ({ onSuccess, onGoToLogin }) => {
+  const { theme, toggleTheme } = useTheme();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +81,8 @@ export const SignupWizard: React.FC<SignupWizardProps> = ({ onSuccess, onGoToLog
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName, name, email, password })
+        body: JSON.stringify({ companyName, name, email, password }),
+        credentials: 'include'
       });
 
       const data = await res.json();
@@ -117,7 +122,8 @@ export const SignupWizard: React.FC<SignupWizardProps> = ({ onSuccess, onGoToLog
           dob,
           phone,
           address
-        })
+        }),
+        credentials: 'include'
       });
 
       const data = await res.json();
@@ -152,23 +158,33 @@ export const SignupWizard: React.FC<SignupWizardProps> = ({ onSuccess, onGoToLog
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 selection:bg-emerald-500 selection:text-slate-950" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       <div className="w-full max-w-xl space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 text-slate-950 shadow-xl shadow-emerald-950/40 mb-1">
             <CreditCard className="w-6 h-6 stroke-[2.2]" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Team Cards by BMONI
-          </h1>
+          <div className="flex items-center justify-center space-x-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Team Cards by BMONI
+            </h1>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              className="text-slate-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-800 transition"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
           <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
             Corporate Expense & Virtual Spend Card Management with Instant NGN Settlement
           </p>
         </div>
 
         {/* Stepper Pill Indicator */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div className="border rounded-2xl p-4 shadow-xl" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
           <div className="flex items-center justify-between text-xs font-semibold">
             <div
               className={`flex items-center space-x-2 ${
@@ -232,13 +248,13 @@ export const SignupWizard: React.FC<SignupWizardProps> = ({ onSuccess, onGoToLog
         </div>
 
         {/* Wizard Card Body */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-          {error && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs flex items-start space-x-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
+        <div className="border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+           {error && (
+             <div className="p-4 border rounded-xl text-xs flex items-start space-x-2.5" style={{ backgroundColor: 'var(--danger-bg)', borderColor: 'var(--danger-border)', color: 'var(--danger-text)' }}>
+               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+               <span>{error}</span>
+             </div>
+           )}
 
           {/* STEP 1: Account Setup */}
           {step === 1 && (

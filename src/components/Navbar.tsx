@@ -9,7 +9,9 @@ import {
   LogOut,
   Zap,
   Building,
-  Plus
+  Plus,
+  Moon,
+  Sun
 } from 'lucide-react';
 import type { Owner } from '../types';
 
@@ -23,6 +25,8 @@ interface NavbarProps {
   onOpenInvite: () => void;
   onOpenSwipeModal: () => void;
   onLogout: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,7 +38,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isRefreshing,
   onOpenInvite,
   onOpenSwipeModal,
-  onLogout
+  onLogout,
+  theme,
+  onToggleTheme
 }) => {
   const formatNgn = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -46,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className=" mx-auto px-4 sm:px-6 lg:px-18">
         <div className="flex items-center justify-between h-16">
           {/* Brand & Organization */}
           <div className="flex items-center space-x-6">
@@ -54,11 +60,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setCurrentTab('dashboard')}
               className="flex items-center space-x-3 cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 p-0.5 shadow-lg shadow-emerald-950/40">
+              {/* <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 p-0.5 shadow-lg shadow-emerald-950/40">
                 <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
                   <CreditCard className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
                 </div>
-              </div>
+              </div> */}
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="font-extrabold text-base tracking-tight text-white">Team Cards</span>
@@ -67,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-                  <Building className="w-3 h-3 text-slate-500" />
+                  {/* <Building className="w-3 h-3 text-slate-500" /> */}
                   <span className="truncate max-w-[140px]">{owner?.companyName || 'Acme Logistics Ltd'}</span>
                 </div>
               </div>
@@ -178,27 +184,35 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Invite</span>
             </button>
 
-            {/* User Profile & Logout */}
-            <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
-              <div className="hidden lg:block text-right">
-                <span className="text-xs font-semibold text-slate-200 block truncate max-w-[110px]">
-                  {owner?.name || 'Director'}
-                </span>
-                <span className="text-[10px] text-emerald-400 font-mono flex items-center justify-end space-x-1">
-                  <ShieldCheck className="w-2.5 h-2.5" />
-                  <span>KYC Active</span>
-                </span>
-              </div>
-              <button
-                type="button"
-                id="nav-logout-btn"
-                onClick={onLogout}
-                title="Sign Out"
-                className="text-slate-400 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-900 transition"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+             {/* User Profile & Logout */}
+             <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
+               <div className="hidden lg:block text-right">
+                 <span className="text-xs font-semibold text-slate-200 block truncate max-w-[110px]">
+                   {owner?.name || 'Director'}
+                 </span>
+                 <span className="text-[10px] text-emerald-400 font-mono flex items-center justify-end space-x-1">
+                   <ShieldCheck className="w-2.5 h-2.5" />
+                   <span>KYC Active</span>
+                 </span>
+               </div>
+               <button
+                 type="button"
+                 onClick={onToggleTheme}
+                 title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                 className="text-slate-400 hover:text-amber-400 p-2 rounded-lg hover:bg-slate-900 transition"
+               >
+                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+               </button>
+               <button
+                 type="button"
+                 id="nav-logout-btn"
+                 onClick={onLogout}
+                 title="Sign Out"
+                 className="text-slate-400 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-900 transition"
+               >
+                 <LogOut className="w-4 h-4" />
+               </button>
+             </div>
           </div>
         </div>
 

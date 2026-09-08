@@ -36,7 +36,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ owner, onRefreshData
   const fetchLogs = async () => {
     setLoadingLogs(true);
     try {
-      const res = await fetch('/api/webhooks/logs');
+      const res = await fetch('/api/webhooks/logs', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setWebhookLogs(data.logs || []);
@@ -69,7 +69,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ owner, onRefreshData
     }
     setResetting(true);
     try {
-      const res = await fetch('/api/system/reset-demo', { method: 'POST' });
+      const res = await fetch('/api/system/reset-demo', { method: 'POST', credentials: 'include' });
       if (res.ok) {
         setFeedback('Reset database to clean hackathon demo state successfully.');
         onRefreshData();

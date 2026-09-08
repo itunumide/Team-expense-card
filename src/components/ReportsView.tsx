@@ -33,7 +33,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ employees }) => {
       if (selectedStatus !== 'ALL') url += `status=${selectedStatus}&`;
       if (search) url += `search=${encodeURIComponent(search)}&`;
 
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setTransactions(data.transactions || []);

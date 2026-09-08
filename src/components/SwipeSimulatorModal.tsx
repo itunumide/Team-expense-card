@@ -68,7 +68,8 @@ export const SwipeSimulatorModal: React.FC<SwipeSimulatorModalProps> = ({
           amount: Number(amount),
           merchant,
           category
-        })
+        }),
+        credentials: 'include'
       });
 
       const data = await res.json();

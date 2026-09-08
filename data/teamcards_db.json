@@ -1,0 +1,357 @@
+{
+  "owners": [
+    {
+      "id": "owner_demo_001",
+      "name": "Adewale Adeleke",
+      "email": "adewale@acme.ng",
+      "companyName": "Acme Logistics Ltd",
+      "bmoniUserId": "bmoni_usr_998124",
+      "bmoniWalletId": "bmoni_wlt_ngn_984120",
+      "kycStatus": "ACTIVE",
+      "kycDetails": {
+        "bvn": "22233344455",
+        "phone": "+2348031234567",
+        "dob": "1988-06-14",
+        "address": "14 Admiralty Way, Lekki Phase 1, Lagos"
+      },
+      "virtualAccount": {
+        "accountNumber": "9920184421",
+        "bankName": "Providus Bank",
+        "accountName": "BMONI / Acme Logistics Tech Ltd",
+        "currency": "NGN"
+      },
+      "createdAt": "2026-08-21T07:38:47.942Z"
+    }
+  ],
+  "employees": [
+    {
+      "id": "emp_101",
+      "ownerId": "owner_demo_001",
+      "name": "Tunde Bakare",
+      "email": "tunde@acme.ng",
+      "department": "Engineering & DevOps",
+      "inviteStatus": "LINKED",
+      "bmoniInviteId": "inv_bmoni_001",
+      "bmoniLinkedUserId": "bmoni_usr_link_501",
+      "inviteUrl": "https://bmoni.app/invite/inv_bmoni_001",
+      "createdAt": "2026-08-23T07:38:47.943Z",
+      "card": {
+        "id": "crd_701",
+        "employeeId": "emp_101",
+        "employeeName": "Tunde Bakare",
+        "employeeEmail": "tunde@acme.ng",
+        "bmoniCardId": "bmoni_crd_ngn_88192",
+        "type": "VIRTUAL",
+        "currency": "NGN",
+        "limitAmount": 150000,
+        "spentAmount": 84200,
+        "status": "ACTIVE",
+        "maskedPan": "5399 •••• •••• 4821",
+        "expiryMonth": "08",
+        "expiryYear": "28",
+        "cvv": "624",
+        "createdAt": "2026-08-25T07:38:47.943Z",
+        "lastUsedAt": "2026-09-04T05:38:47.943Z"
+      }
+    },
+    {
+      "id": "emp_102",
+      "ownerId": "owner_demo_001",
+      "name": "Chioma Eze",
+      "email": "chioma@acme.ng",
+      "department": "Sales & Growth",
+      "inviteStatus": "LINKED",
+      "bmoniInviteId": "inv_bmoni_002",
+      "bmoniLinkedUserId": "bmoni_usr_link_502",
+      "inviteUrl": "https://bmoni.app/invite/inv_bmoni_002",
+      "createdAt": "2026-08-26T07:38:47.943Z",
+      "card": {
+        "id": "crd_702",
+        "employeeId": "emp_102",
+        "employeeName": "Chioma Eze",
+        "employeeEmail": "chioma@acme.ng",
+        "bmoniCardId": "bmoni_crd_ngn_88193",
+        "type": "VIRTUAL",
+        "currency": "NGN",
+        "limitAmount": 75000,
+        "spentAmount": 29500,
+        "status": "ACTIVE",
+        "maskedPan": "5399 •••• •••• 9104",
+        "expiryMonth": "09",
+        "expiryYear": "28",
+        "cvv": "811",
+        "createdAt": "2026-08-28T07:38:47.943Z",
+        "lastUsedAt": "2026-09-04T02:38:47.943Z"
+      }
+    },
+    {
+      "id": "emp_103",
+      "ownerId": "owner_demo_001",
+      "name": "Emeka Obi",
+      "email": "emeka@acme.ng",
+      "department": "Field Operations",
+      "inviteStatus": "LINKED",
+      "bmoniInviteId": "inv_bmoni_003",
+      "bmoniLinkedUserId": "bmoni_usr_link_2142",
+      "inviteUrl": "https://bmoni.app/invite/inv_bmoni_003",
+      "createdAt": "2026-09-02T07:38:47.943Z"
+    },
+    {
+      "id": "emp_104",
+      "ownerId": "owner_demo_001",
+      "name": "Fatima Danjuma",
+      "email": "fatima@acme.ng",
+      "department": "Finance & Admin",
+      "inviteStatus": "LINKED",
+      "bmoniInviteId": "inv_bmoni_004",
+      "bmoniLinkedUserId": "bmoni_usr_link_504",
+      "inviteUrl": "https://bmoni.app/invite/inv_bmoni_004",
+      "createdAt": "2026-08-29T07:38:47.943Z",
+      "card": {
+        "id": "crd_704",
+        "employeeId": "emp_104",
+        "employeeName": "Fatima Danjuma",
+        "employeeEmail": "fatima@acme.ng",
+        "bmoniCardId": "bmoni_crd_ngn_88195",
+        "type": "VIRTUAL",
+        "currency": "NGN",
+        "limitAmount": 50000,
+        "spentAmount": 12000,
+        "status": "FROZEN",
+        "maskedPan": "5399 •••• •••• 3042",
+        "expiryMonth": "11",
+        "expiryYear": "28",
+        "cvv": "190",
+        "createdAt": "2026-08-30T07:38:47.943Z",
+        "lastUsedAt": "2026-09-03T07:38:47.943Z"
+      }
+    },
+    {
+      "ownerId": "owner_demo_001",
+      "name": "Raji itunu",
+      "email": "flourishitunu001@gmail.com",
+      "department": "Engineering & DevOps",
+      "inviteStatus": "PENDING",
+      "bmoniInviteId": "inv_bmoni_6fb784cbad",
+      "bmoniLinkedUserId": null,
+      "inviteUrl": "https://bmoni.app/invite/inv_bmoni_6fb784cbad?org=Acme%20Logistics%20Ltd&email=flourishitunu001%40gmail.com",
+      "qrCodeDataUrl": "data:image/png;base64,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",
+      "id": "emp_fddbc913",
+      "createdAt": "2026-09-04T07:46:18.524Z"
+    },
+    {
+      "ownerId": "owner_demo_001",
+      "name": "itunu",
+      "email": "www@hm",
+      "department": "Engineering & DevOps",
+      "inviteStatus": "PENDING",
+      "bmoniInviteId": "inv_bmoni_fb77e3bc9a",
+      "bmoniLinkedUserId": null,
+      "inviteUrl": "https://bmoni.app/invite/inv_bmoni_fb77e3bc9a?org=Acme%20Logistics%20Ltd&email=www%40hm",
+      "qrCodeDataUrl": "data:image/png;base64,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",
+      "id": "emp_11752e7c",
+      "createdAt": "2026-09-04T07:55:08.810Z"
+    }
+  ],
+  "cards": [
+    {
+      "id": "crd_701",
+      "employeeId": "emp_101",
+      "employeeName": "Tunde Bakare",
+      "employeeEmail": "tunde@acme.ng",
+      "bmoniCardId": "bmoni_crd_ngn_88192",
+      "type": "VIRTUAL",
+      "currency": "NGN",
+      "limitAmount": 150000,
+      "spentAmount": 84200,
+      "status": "FROZEN",
+      "maskedPan": "5399 •••• •••• 4821",
+      "expiryMonth": "08",
+      "expiryYear": "28",
+      "cvv": "624",
+      "createdAt": "2026-08-25T07:38:47.943Z",
+      "lastUsedAt": "2026-09-04T05:38:47.943Z"
+    },
+    {
+      "id": "crd_702",
+      "employeeId": "emp_102",
+      "employeeName": "Chioma Eze",
+      "employeeEmail": "chioma@acme.ng",
+      "bmoniCardId": "bmoni_crd_ngn_88193",
+      "type": "VIRTUAL",
+      "currency": "NGN",
+      "limitAmount": 75000,
+      "spentAmount": 29500,
+      "status": "ACTIVE",
+      "maskedPan": "5399 •••• •••• 9104",
+      "expiryMonth": "09",
+      "expiryYear": "28",
+      "cvv": "811",
+      "createdAt": "2026-08-28T07:38:47.943Z",
+      "lastUsedAt": "2026-09-04T02:38:47.943Z"
+    },
+    {
+      "id": "crd_704",
+      "employeeId": "emp_104",
+      "employeeName": "Fatima Danjuma",
+      "employeeEmail": "fatima@acme.ng",
+      "bmoniCardId": "bmoni_crd_ngn_88195",
+      "type": "VIRTUAL",
+      "currency": "NGN",
+      "limitAmount": 50000,
+      "spentAmount": 12000,
+      "status": "FROZEN",
+      "maskedPan": "5399 •••• •••• 3042",
+      "expiryMonth": "11",
+      "expiryYear": "28",
+      "cvv": "190",
+      "createdAt": "2026-08-30T07:38:47.943Z",
+      "lastUsedAt": "2026-09-03T07:38:47.943Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx_901",
+      "cardId": "crd_701",
+      "employeeId": "emp_101",
+      "employeeName": "Tunde Bakare",
+      "bmoniTransactionId": "bmoni_tx_8801",
+      "amount": 45000,
+      "currency": "NGN",
+      "merchant": "AWS Cloud Services",
+      "category": "Cloud & Infrastructure",
+      "status": "SUCCESS",
+      "occurredAt": "2026-09-04T05:38:47.943Z"
+    },
+    {
+      "id": "tx_902",
+      "cardId": "crd_701",
+      "employeeId": "emp_101",
+      "employeeName": "Tunde Bakare",
+      "bmoniTransactionId": "bmoni_tx_8802",
+      "amount": 14200,
+      "currency": "NGN",
+      "merchant": "Uber Nigeria Ride",
+      "category": "Travel & Mobility",
+      "status": "SUCCESS",
+      "occurredAt": "2026-09-03T17:38:47.943Z"
+    },
+    {
+      "id": "tx_903",
+      "cardId": "crd_702",
+      "employeeId": "emp_102",
+      "employeeName": "Chioma Eze",
+      "bmoniTransactionId": "bmoni_tx_8803",
+      "amount": 25000,
+      "currency": "NGN",
+      "merchant": "TotalEnergies Fuel Station VI",
+      "category": "Fuel & Transportation",
+      "status": "SUCCESS",
+      "occurredAt": "2026-09-04T02:38:47.943Z"
+    },
+    {
+      "id": "tx_904",
+      "cardId": "crd_701",
+      "employeeId": "emp_101",
+      "employeeName": "Tunde Bakare",
+      "bmoniTransactionId": "bmoni_tx_8804",
+      "amount": 25000,
+      "currency": "NGN",
+      "merchant": "GitHub Enterprise Subscription",
+      "category": "Software & SaaS",
+      "status": "SUCCESS",
+      "occurredAt": "2026-09-03T03:38:47.943Z"
+    },
+    {
+      "id": "tx_905",
+      "cardId": "crd_702",
+      "employeeId": "emp_102",
+      "employeeName": "Chioma Eze",
+      "bmoniTransactionId": "bmoni_tx_8805",
+      "amount": 4500,
+      "currency": "NGN",
+      "merchant": "Chicken Republic Lekki",
+      "category": "Meals & Entertainment",
+      "status": "SUCCESS",
+      "occurredAt": "2026-09-02T07:38:47.943Z"
+    },
+    {
+      "id": "tx_906",
+      "cardId": "crd_704",
+      "employeeId": "emp_104",
+      "employeeName": "Fatima Danjuma",
+      "bmoniTransactionId": "bmoni_tx_8806",
+      "amount": 12000,
+      "currency": "NGN",
+      "merchant": "Office Supplies Hub Ikeja",
+      "category": "Office & Supplies",
+      "status": "SUCCESS",
+      "occurredAt": "2026-09-03T07:38:47.943Z"
+    },
+    {
+      "id": "tx_907",
+      "cardId": "crd_704",
+      "employeeId": "emp_104",
+      "employeeName": "Fatima Danjuma",
+      "bmoniTransactionId": "bmoni_tx_8807",
+      "amount": 85000,
+      "currency": "NGN",
+      "merchant": "Jumia Tech Store",
+      "category": "Equipment",
+      "status": "DECLINED",
+      "occurredAt": "2026-09-03T23:38:47.944Z",
+      "declinedReason": "Card is currently FROZEN by administrator"
+    }
+  ],
+  "webhooks": [
+    {
+      "eventType": "invite.linked",
+      "payload": {
+        "event": "invite.linked",
+        "inviteId": "inv_bmoni_003",
+        "userId": "bmoni_usr_link_2142",
+        "email": "emeka@acme.ng",
+        "name": "Emeka Obi",
+        "timestamp": "2026-09-04T07:42:52.147Z"
+      },
+      "signature": "sha256=f5a65cf41b7cf4ca2d2c02544e08347e91a2c07858feeeeb3ebef617d998fd6f",
+      "status": "PROCESSED",
+      "id": "wh_log_6ac5e160",
+      "receivedAt": "2026-09-04T07:42:52.149Z"
+    },
+    {
+      "id": "wh_log_001",
+      "eventType": "deposit.confirmed",
+      "payload": {
+        "event": "deposit.confirmed",
+        "walletId": "bmoni_wlt_ngn_984120",
+        "amount": 500000,
+        "currency": "NGN",
+        "reference": "NGN_DEP_SANDBOX_9921",
+        "sender": "Acme Corporate Settlement",
+        "timestamp": "2026-09-01T07:38:47.944Z"
+      },
+      "signature": "sha256=a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890",
+      "receivedAt": "2026-09-01T07:38:47.944Z",
+      "status": "PROCESSED"
+    },
+    {
+      "id": "wh_log_002",
+      "eventType": "invite.linked",
+      "payload": {
+        "event": "invite.linked",
+        "inviteId": "inv_bmoni_001",
+        "userId": "bmoni_usr_link_501",
+        "email": "tunde@acme.ng",
+        "name": "Tunde Bakare",
+        "timestamp": "2026-08-24T07:38:47.944Z"
+      },
+      "signature": "sha256=b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890a1",
+      "receivedAt": "2026-08-24T07:38:47.944Z",
+      "status": "PROCESSED"
+    }
+  ],
+  "walletBalances": {
+    "bmoni_wlt_ngn_984120": 875000
+  }
+}

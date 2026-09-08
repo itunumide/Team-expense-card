@@ -49,7 +49,8 @@ export const IssueCardModal: React.FC<IssueCardModalProps> = ({
         body: JSON.stringify({
           employeeId: employee.id,
           limitAmount: effectiveLimit
-        })
+        }),
+        credentials: 'include'
       });
 
       const data = await res.json();

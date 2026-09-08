@@ -69,7 +69,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const res = await fetch('/api/wallet/faucet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount })
+        body: JSON.stringify({ amount }),
+        credentials: 'include'
       });
       const data = await res.json();
       if (res.ok) {
@@ -145,7 +146,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Primary Wallet & Virtual Account Cards Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Wallet Balance Hero Card (7 cols) */}
-        <div className="lg:col-span-7 bg-gradient-to-br from-slate-900 via-slate-900/90 to-emerald-950/40 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden">
+        <div
+          className="lg:col-span-7 border rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden"
+          style={{
+            backgroundImage: `linear-gradient(to bottom right, var(--wallet-gradient-from), var(--wallet-gradient-via), var(--wallet-gradient-to))`,
+            borderColor: 'var(--border-color)'
+          }}
+        >
           <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
           <div>
