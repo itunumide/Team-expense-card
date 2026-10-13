@@ -254,7 +254,7 @@ export class BmoniClient {
     }
 
     const inviteId = `inv_bmoni_${crypto.randomBytes(5).toString('hex')}`;
-    const inviteUrl = `https://bmoni.app/invite/${inviteId}?org=${encodeURIComponent(
+    const inviteUrl = `https://bmoni.ng/invite/${inviteId}?org=${encodeURIComponent(
       data.companyName
     )}&email=${encodeURIComponent(data.email)}`;
 

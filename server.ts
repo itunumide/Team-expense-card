@@ -1,11 +1,14 @@
 import 'dotenv/config';
+import dotenv from 'dotenv';
 import crypto from 'node:crypto';
 import express from 'express';
 import path from 'path';
 import QRCode from 'qrcode';
 import { createServer as createViteServer } from 'vite';
-import { storage } from './server/storageSupabase';
+import { storage } from './server/storageConvex';
 import { bmoni, BMONI_TEST_IDENTITIES } from './server/bmoni';
+
+dotenv.config({ path: '.env.local' });
 
 type OwnerSession = {
   ownerId: string;
@@ -695,8 +698,7 @@ async function startServer() {
 
       if (eventType === 'kyc.activated') {
         const userId = payload.userId;
-        const owners = await storage.getOwnersAsync();
-        const owner = owners.find((o) => o.bmoniUserId === userId);
+        const owner = await storage.getOwnerByBmoniUserIdAsync(userId);
         if (owner) {
           await storage.updateOwnerAsync(owner.id, { kycStatus: 'ACTIVE' });
         }
@@ -718,9 +720,8 @@ async function startServer() {
       } else if (eventType === 'card.transaction') {
         const card = await storage.getCardByBmoniIdAsync(payload.cardId);
         if (card && payload.transactionId) {
-          const existing = await storage.getTransactionsAsync();
-          const found = existing.find((t) => t.bmoniTransactionId === payload.transactionId);
-          if (!found) {
+          const existing = await storage.getTransactionByBmoniIdAsync(payload.transactionId);
+          if (!existing) {
             await storage.createTransactionAsync({
               cardId: card.id,
               employeeId: card.employeeId,
